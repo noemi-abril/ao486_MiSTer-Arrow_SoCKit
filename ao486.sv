@@ -193,7 +193,7 @@ led fdd_led(clk_sys, |mgmt_req[7:6], LED_USER);
 // 0         1         2         3          4         5         6
 // 01234567890123456789012345678901 23456789012345678901234567890123
 // 0123456789ABCDEFGHIJKLMNOPQRSTUV 0123456789ABCDEFGHIJKLMNOPQRSTUV
-// XXXXXXXXXXXXXXXXXXXXXXXXX XXXXXX XXXXXXXXXXXXXXXXXXX
+// XXXXXXXXXXXXXXXXXXXXXXXXX XXXXXX XXXXXXXXXXXXXXXXXXXXXXX
 
 `include "build_id.v"
 localparam CONF_STR =
@@ -209,7 +209,8 @@ localparam CONF_STR =
 	"S4,VHDISOCUECHD,IDE 1-0;",
 	"S5,VHDISOCUECHD,IDE 1-1;",
 	"-;",
-
+	"oJM,CPU Preset,User Defined,~PC XT-7MHz,~PC AT-8MHz,~PC AT-10MHz,~PC AT-20MHz,~PS/2-20MHz,~386SX-25MHz,~386DX-33Mhz,~386DX-40Mhz,~486SX-33Mhz,~486DX-33Mhz,MAX (unstable);",
+	"-;",
 	"P1,Audio & Video;",
 	"P1-;",
 	"P1OMN,Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
@@ -235,11 +236,11 @@ localparam CONF_STR =
 	"P2-;",
 	"P2OB,RAM Size,256MB,16MB;",
 `ifndef DEBUG
-	"P2-;",
-	"D2D1P2O56,CPU Clock,90MHz,15MHz,30MHz,56MHz;",
-	"h0P2O7,Overclock,Off,100Mhz;",
-	"D2P2OF,L1 Cache,On,Off;",
-	"D2P2OG,L2 Cache,On,Off;",
+	"H5P2-;",
+	"H5D2D1P2O56,CPU Clock,90MHz,15MHz,30MHz,56MHz;",
+	"H5h0P2O7,Overclock,Off,100Mhz;",
+	"H5D2P2OF,L1 Cache,On,Off;",
+	"H5D2P2OG,L2 Cache,On,Off;",
 `endif
 	"P2-;",
 	"P2OA,USER I/O,MIDI,COM2;",
@@ -325,7 +326,7 @@ hps_io #(.CONF_STR(CONF_STR), .CONF_STR_BRAM(0), .PS2DIV(2000), .PS2WE(1), .WIDE
 
 	.buttons(buttons),
 	.status(status),
-	.status_menumask({mt32_newmode,mt32_available,syscfg[7],status[7],dbg_menu}),
+	.status_menumask({|status[54:51],mt32_newmode,mt32_available,syscfg[7],status[7],dbg_menu}),
 	.info_req(mt32_info_req),
 	.info(mt32_info_disp),
 
@@ -428,7 +429,28 @@ pll_cfg pll_cfg
 );
 
 reg [2:0] clk_req;
-always @(posedge clk_sys) clk_req <= {status[7], syscfg[7] ? syscfg[1:0] : status[6:5]};
+reg l1, l2;
+always @(posedge clk_sys) begin
+	case(status[54:51])
+		'd1: begin clk_req <= 'd3; l1 <= 1'b1; l2 <= 1'b1; end  // ao486 XT 7
+		'd2: begin clk_req <= 'd1; l1 <= 1'b1; l2 <= 1'b0; end  // ao486 AT 8
+		'd3: begin clk_req <= 'd2; l1 <= 1'b0; l2 <= 1'b1; end  // ao486 AT 10
+		'd4: begin clk_req <= 'd2; l1 <= 1'b1; l2 <= 1'b0; end  // ao486 AT 20
+		'd5: begin clk_req <= 'd1; l1 <= 1'b0; l2 <= 1'b0; end  // ao486 PS/2 20
+		'd6: begin clk_req <= 'd3; l1 <= 1'b1; l2 <= 1'b0; end  // ao486 3SX 25
+		'd7: begin clk_req <= 'd2; l1 <= 1'b0; l2 <= 1'b0; end  // ao486 3DX 33 
+		'd8: begin clk_req <= 'd0; l1 <= 1'b1; l2 <= 1'b0; end  // ao486 3DX 40
+		'd9: begin clk_req <= 'd3; l1 <= 1'b0; l2 <= 1'b0; end  // ao486 4SX 33
+		'd10: begin clk_req <= 'd0; l1 <= 1'b0; l2 <= 1'b0; end // ao486 MAX (stable)
+		'd11: begin clk_req <= 'd4; l1 <= 1'b0; l2 <= 1'b0; end // ao486 MAX+ (unstable)
+		default: begin 
+		// CPU & Cache config
+		clk_req <= {status[7], syscfg[7] ? syscfg[1:0] : status[6:5]};
+		l1 <= syscfg[7] ? syscfg[4] : status[15];
+		l2 <= syscfg[7] ? syscfg[5] : status[16];
+		end
+	endcase
+end
 
 reg [2:0] speed;
 always @(posedge CLK_50M) begin
@@ -721,8 +743,8 @@ system system
 	.clock_rate           (cur_rate),
 	
 	.syscfg               (syscfg),
-	.l1_disable           (syscfg[7] ? syscfg[4] : status[15]),
-	.l2_disable           (syscfg[7] ? syscfg[5] : status[16]),
+	.l1_disable           (l1),
+	.l2_disable           (l2),
 
 	.video_ce             (vga_ce),
 	.video_f60            (~status[4] | f60),

@@ -113,17 +113,17 @@ module sys_top
 	input         BTN_RESET,
 `endif
 
-	////////// I/O ALT /////////
-	//output        SD_SPI_CS,
-	//input         SD_SPI_MISO,
-	//output        SD_SPI_CLK,
-	//output        SD_SPI_MOSI,
-
+/*	////////// I/O ALT /////////
+	output        SD_SPI_CS,
+	input         SD_SPI_MISO,
+	output        SD_SPI_CLK,
+	output        SD_SPI_MOSI,
+*/
 	inout         SDCD_SPDIF,
 	output        IO_SCL,
 	inout         IO_SDA,
-/*
-	////////// ADC //////////////
+
+/*	////////// ADC //////////////
 	output        ADC_SCK,
 	input         ADC_SDO,
 	output        ADC_SDI,
